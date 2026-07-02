@@ -1,0 +1,12 @@
+{
+  "name": "xiangqi-backend",
+  "version": "1.0.0",
+  "description": "Xiangqi (Chinese Chess) rules engine + AI + SVG board renderer, for use behind a Voiceflow chatbot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
