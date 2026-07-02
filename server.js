@@ -9,6 +9,18 @@ const { renderBoardSVG } = require('./render');
 const app = express();
 app.use(express.json());
 
+// Allow requests from any origin (Voiceflow, browsers, etc.) — this is a
+// small demo backend, not something handling sensitive data, so a wide-open
+// CORS policy is fine here and rules out CORS as a source of "can't connect"
+// errors from any calling platform.
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 // --- In-memory session store ---------------------------------------------
 // For production, swap this Map for Redis/a DB keyed by sessionId so games
 // survive server restarts and you can run more than one instance.
