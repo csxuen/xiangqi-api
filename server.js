@@ -110,12 +110,16 @@ app.post('/move', (req, res) => {
 
 // 4. Get the legal moves list for the side to move — feed this to your
 //    LLM parsing step so it can only ever pick a real, legal move.
-// Accepts the session id EITHER as a query param (?id=...) OR as a path
-// segment (/legal-moves/xyz) — some frontends (including some Voiceflow
-// configurations) don't reliably substitute variables inside a URL path
-// segment, so the query-param form is the recommended one to use.
+//
+// IMPORTANT: use the POST version (/legal-moves, sessionId in the JSON body)
+// from Voiceflow. Some Voiceflow API tool configurations do not reliably
+// substitute {variables} that live inside the URL field at runtime (even
+// though they substitute correctly in a manual test, and even though the
+// exact same variable substitutes fine inside a JSON body) — so the GET
+// versions below are kept only for direct/manual testing with tools like
+// Hoppscotch, not for use from Voiceflow.
 function handleLegalMoves(req, res) {
-  const sessionId = req.query.id || req.params.sessionId;
+  const sessionId = (req.body && req.body.sessionId) || req.query.id || req.params.sessionId;
   const state = games.get(sessionId);
   if (!state) return res.status(404).json({ error: 'Game not found', received: sessionId || null });
   const moves = legalMoves(state.board, state.toMove).map(m => ({
@@ -123,8 +127,9 @@ function handleLegalMoves(req, res) {
   }));
   res.json({ toMove: state.toMove, moves });
 }
-app.get('/legal-moves', handleLegalMoves);
-app.get('/legal-moves/:sessionId', handleLegalMoves);
+app.post('/legal-moves', handleLegalMoves);   // <-- use this one from Voiceflow
+app.get('/legal-moves', handleLegalMoves);    // for manual/browser testing only
+app.get('/legal-moves/:sessionId', handleLegalMoves); // for manual/browser testing only
 
 // 5. AI takes its turn.
 app.post('/ai-move', (req, res) => {
