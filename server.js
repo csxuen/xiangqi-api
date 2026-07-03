@@ -4,7 +4,7 @@ const {
   RED, BLACK, initialBoard, legalMoves, applyMoveRaw, gameStatus,
 } = require('./xiangqi');
 const { chooseAiMove } = require('./ai');
-const { renderBoardSVG } = require('./render');
+const { renderBoardSVG, encodeBoardState, decodeBoardState } = require('./render');
 
 const app = express();
 app.use(express.json());
