@@ -37,14 +37,32 @@ function minimax(board, color, depth, alpha, beta, maximizing, rootColor) {
   return best;
 }
 
-// depth 2 plies is fast and safe on slower free-tier hosting CPUs (well under
-// typical caller timeouts of ~20s). Depth 3 plays noticeably better but can
-// take 5-20+ seconds on a slow/shared CPU, which is enough to trip timeouts
-// in callers like Voiceflow. Raise back to 3 only if your host is fast
-// enough — test with `node -e` timing before relying on it in production.
 function chooseAiMove(board, aiColor, depth = 2) {
-  const result = minimax(board, aiColor, depth, -Infinity, Infinity, true, aiColor);
-  return result ? result.move : null;
+  const moves = legalMoves(board, aiColor);
+  if (moves.length === 0) return null;
+
+  const nextColor = aiColor === RED ? BLACK : RED;
+  const scoredMoves = [];
+
+  // 1. Score every single legal move
+  for (const m of moves) {
+    const nb = applyMoveRaw(board, m.from, m.to);
+    const result = minimax(nb, nextColor, depth - 1, -Infinity, Infinity, false, aiColor);
+    scoredMoves.push({ move: m, score: result.score });
+  }
+
+  // 2. Sort moves from highest score to lowest score
+  scoredMoves.sort((a, b) => b.score - a.score);
+
+  // 3. Find the absolute highest score achieved
+  const bestScore = scoredMoves[0].score;
+
+  // 4. Gather all moves that are the absolute best, or within a tiny "human error" margin (e.g., within 5 points)
+  const topMoves = scoredMoves.filter(sm => sm.score >= bestScore - 5);
+
+  // 5. Pick one of these top moves completely at random!
+  const randomIndex = Math.floor(Math.random() * topMoves.length);
+  return topMoves[randomIndex].move;
 }
 
 module.exports = { chooseAiMove };
