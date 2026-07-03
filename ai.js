@@ -37,9 +37,12 @@ function minimax(board, color, depth, alpha, beta, maximizing, rootColor) {
   return best;
 }
 
-// depth 3 plies is fast and gives reasonable "beginner-club" strength.
-// Raise to 4-5 for stronger play (slower).
-function chooseAiMove(board, aiColor, depth = 3) {
+// depth 2 plies is fast and safe on slower free-tier hosting CPUs (well under
+// typical caller timeouts of ~20s). Depth 3 plays noticeably better but can
+// take 5-20+ seconds on a slow/shared CPU, which is enough to trip timeouts
+// in callers like Voiceflow. Raise back to 3 only if your host is fast
+// enough — test with `node -e` timing before relying on it in production.
+function chooseAiMove(board, aiColor, depth = 2) {
   const result = minimax(board, aiColor, depth, -Infinity, Infinity, true, aiColor);
   return result ? result.move : null;
 }
