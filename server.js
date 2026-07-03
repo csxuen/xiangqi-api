@@ -33,6 +33,33 @@ function pieceName(p) {
   return names[p.toLowerCase()];
 }
 
+// Human-friendly description: "horse moves forward, capturing your soldier"
+// instead of raw board coordinates. Direction is relative to the mover's own
+// side — Red advances toward row 0, Black advances toward row 9.
+function describeMoveFriendly(move, color) {
+  const [fr, fc] = move.from, [tr, tc] = move.to;
+  const rowDelta = tr - fr;
+  const colDelta = tc - fc;
+
+  let vert = '';
+  if (rowDelta !== 0) {
+    const movingTowardRow0 = rowDelta < 0;
+    const isForward = color === RED ? movingTowardRow0 : !movingTowardRow0;
+    vert = isForward ? 'forward' : 'backward';
+  }
+  let horiz = '';
+  if (colDelta !== 0) horiz = colDelta > 0 ? 'right' : 'left';
+
+  let direction;
+  if (vert && horiz) direction = `${vert} and to the ${horiz}`;
+  else if (vert) direction = vert;
+  else if (horiz) direction = `to the ${horiz}`;
+  else direction = 'in place';
+
+  const capTxt = move.captured ? `, capturing your ${pieceName(move.captured)}` : '';
+  return `${pieceName(move.piece)} moves ${direction}${capTxt}`;
+}
+
 function describeMove(move) {
   const [fr, fc] = move.from, [tr, tc] = move.to;
   const capTxt = move.captured ? `, capturing your ${pieceName(move.captured)}` : '';
