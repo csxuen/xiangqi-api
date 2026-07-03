@@ -28,8 +28,9 @@ function pieceName(p) {
   return names[p.toLowerCase()];
 }
 
-// Human-friendly description: "horse moves forward, capturing your soldier"
+// Human-friendly description: "horse forward, capturing your soldier"
 function describeMoveFriendly(move, color) {
+  // FIX: We need these lines to extract the coordinates and calculate the distance!
   const [fr, fc] = move.from, [tr, tc] = move.to;
   const rowDelta = tr - fr;
   const colDelta = tc - fc;
@@ -38,7 +39,7 @@ function describeMoveFriendly(move, color) {
   if (rowDelta !== 0) {
     const movingTowardRow0 = rowDelta < 0;
     const isForward = color === RED ? movingTowardRow0 : !movingTowardRow0;
-    vert = isForward ? 'forward' : 'backward';
+    vert = isForward ? 'forward' : 'backward'; 
   }
   let horiz = '';
   if (colDelta !== 0) horiz = colDelta > 0 ? 'right' : 'left';
@@ -50,7 +51,7 @@ function describeMoveFriendly(move, color) {
   else direction = 'in place';
 
   const capTxt = move.captured ? `, capturing your ${pieceName(move.captured)}` : '';
-  return `${pieceName(move.piece)} moves ${direction}${capTxt}`;
+  return `${pieceName(move.piece)} ${direction}${capTxt}`; 
 }
 
 // Base URL used to build absolute image links returned to Voiceflow.
