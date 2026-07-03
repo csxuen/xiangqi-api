@@ -14,6 +14,32 @@ const CHAR = {
 function px(col) { return MARGIN + col * CELL; }
 function py(row) { return MARGIN + row * CELL; }
 
+// Encode/decode a board into a compact 90-character string so a board
+// image URL can be fully self-contained (immutable snapshot) instead of
+// depending on live session lookup — see server.js for why this matters.
+function encodeBoardState(board) {
+  let s = '';
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      s += board[r][c] || '.';
+    }
+  }
+  return s;
+}
+
+function decodeBoardState(str) {
+  const board = [];
+  for (let r = 0; r < 10; r++) {
+    const row = [];
+    for (let c = 0; c < 9; c++) {
+      const ch = str[r * 9 + c];
+      row.push(ch === '.' ? null : ch);
+    }
+    board.push(row);
+  }
+  return board;
+}
+
 function renderBoardSVG(board, opts = {}) {
   const { lastMove = null, highlightColor = '#ff5a3c' } = opts;
   let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'PingFang SC','Microsoft YaHei',sans-serif">`;
@@ -65,4 +91,4 @@ function renderBoardSVG(board, opts = {}) {
   return svg;
 }
 
-module.exports = { renderBoardSVG };
+module.exports = { renderBoardSVG, encodeBoardState, decodeBoardState };
