@@ -94,7 +94,7 @@ app.get('/board.svg', (req, res) => {
 app.post('/move', (req, res) => {
   const { sessionId, from, to } = req.body;
   const state = games.get(sessionId);
-  if (!state) return res.status(404).json({ error: 'Game not found' });
+  if (!state) return res.status(404).json({ error: 'Game not found', received: sessionId || null });
   if (state.toMove !== state.userColor) return res.status(400).json({ error: 'Not your turn' });
 
   const moves = legalMoves(state.board, state.userColor);
@@ -110,20 +110,27 @@ app.post('/move', (req, res) => {
 
 // 4. Get the legal moves list for the side to move — feed this to your
 //    LLM parsing step so it can only ever pick a real, legal move.
-app.get('/legal-moves/:sessionId', (req, res) => {
-  const state = games.get(req.params.sessionId);
-  if (!state) return res.status(404).json({ error: 'Game not found' });
+// Accepts the session id EITHER as a query param (?id=...) OR as a path
+// segment (/legal-moves/xyz) — some frontends (including some Voiceflow
+// configurations) don't reliably substitute variables inside a URL path
+// segment, so the query-param form is the recommended one to use.
+function handleLegalMoves(req, res) {
+  const sessionId = req.query.id || req.params.sessionId;
+  const state = games.get(sessionId);
+  if (!state) return res.status(404).json({ error: 'Game not found', received: sessionId || null });
   const moves = legalMoves(state.board, state.toMove).map(m => ({
     from: m.from, to: m.to, piece: pieceName(m.piece), captures: m.captured ? pieceName(m.captured) : null,
   }));
   res.json({ toMove: state.toMove, moves });
-});
+}
+app.get('/legal-moves', handleLegalMoves);
+app.get('/legal-moves/:sessionId', handleLegalMoves);
 
 // 5. AI takes its turn.
 app.post('/ai-move', (req, res) => {
   const { sessionId } = req.body;
   const state = games.get(sessionId);
-  if (!state) return res.status(404).json({ error: 'Game not found' });
+  if (!state) return res.status(404).json({ error: 'Game not found', received: sessionId || null });
   if (state.toMove !== state.aiColor) return res.status(400).json({ error: 'Not AI turn' });
 
   const move = chooseAiMove(state.board, state.aiColor);
