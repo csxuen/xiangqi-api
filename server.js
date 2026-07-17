@@ -30,7 +30,6 @@ function pieceName(p) {
 
 // Human-friendly description: "horse forward, capturing your soldier"
 function describeMoveFriendly(move, color) {
-  // FIX: We need these lines to extract the coordinates and calculate the distance!
   const [fr, fc] = move.from, [tr, tc] = move.to;
   const rowDelta = tr - fr;
   const colDelta = tc - fc;
@@ -39,7 +38,7 @@ function describeMoveFriendly(move, color) {
   if (rowDelta !== 0) {
     const movingTowardRow0 = rowDelta < 0;
     const isForward = color === RED ? movingTowardRow0 : !movingTowardRow0;
-    vert = isForward ? 'forward' : 'backward'; 
+    vert = isForward ? 'forward' : 'backward';
   }
   let horiz = '';
   if (colDelta !== 0) horiz = colDelta > 0 ? 'right' : 'left';
@@ -51,13 +50,19 @@ function describeMoveFriendly(move, color) {
   else direction = 'in place';
 
   const capTxt = move.captured ? `, capturing your ${pieceName(move.captured)}` : '';
-  return `${pieceName(move.piece)} ${direction}${capTxt}`; 
+  return `${pieceName(move.piece)} ${direction}${capTxt}`;
+}
+
+// Clamp any incoming difficulty value to a safe range (1-3). Depth 4+ risks
+// multi-second computation that can exceed caller timeouts (~20s), so it's
+// intentionally never allowed here regardless of what's requested.
+function safeDepth(depth) {
+  return Math.min(Math.max(parseInt(depth, 10) || 2, 1), 3);
 }
 
 // Base URL used to build absolute image links returned to Voiceflow.
 const BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
 
-// FIX: Generate an completely unique URL based entirely on the snapshot layout array
 function buildSnapshotUrl(board) {
   const encodedStr = encodeBoardState(board);
   return `${BASE_URL}/board/${encodedStr}.svg?t=${Date.now()}`;
@@ -65,20 +70,21 @@ function buildSnapshotUrl(board) {
 
 // --- Routes ----------------------------------------------------------------
 
-// 1. Start a new game. Body: { color: "red" | "black" }
+// 1. Start a new game. Body: { color: "red" | "black", depth?: 1-3 }
 app.post('/new-game', (req, res) => {
   const userColor = (req.body.color || 'red').toLowerCase() === 'black' ? BLACK : RED;
+  const depth = safeDepth(req.body.depth);
   const sessionId = newSessionId();
   const board = initialBoard();
-  games.set(sessionId, { board, userColor, aiColor: userColor === RED ? BLACK : RED, toMove: RED });
+  games.set(sessionId, { board, userColor, aiColor: userColor === RED ? BLACK : RED, toMove: RED, depth });
 
   const state = games.get(sessionId);
   let aiMoveDesc = null;
 
   // If the user chose Black, Red (AI) moves first.
   if (state.toMove === state.aiColor) {
-    const move = chooseAiMove(state.board, state.aiColor);
-    aiMoveDesc = describeMoveFriendly(move, state.aiColor); // FIX: Swapped to friendly translation
+    const move = chooseAiMove(state.board, state.aiColor, state.depth);
+    aiMoveDesc = describeMoveFriendly(move, state.aiColor);
     state.board = applyMoveRaw(state.board, move.from, move.to);
     state.toMove = state.userColor;
   }
@@ -86,7 +92,7 @@ app.post('/new-game', (req, res) => {
   res.json({
     sessionId,
     status: gameStatus(state.board, state.toMove),
-    boardImageUrl: buildSnapshotUrl(state.board), // FIX: Swapped to snapshot URL
+    boardImageUrl: buildSnapshotUrl(state.board),
     aiMoveDescription: aiMoveDesc,
   });
 });
@@ -115,7 +121,7 @@ app.post('/move', (req, res) => {
   state.toMove = state.aiColor;
 
   const status = gameStatus(state.board, state.toMove);
-  res.json({ status, boardImageUrl: buildSnapshotUrl(state.board) }); // FIX: Swapped to snapshot URL
+  res.json({ status, boardImageUrl: buildSnapshotUrl(state.board) });
 });
 
 // 4. Get the legal moves list
@@ -131,24 +137,28 @@ function handleLegalMoves(req, res) {
 app.post('/legal-moves', handleLegalMoves);
 app.get('/legal-moves', handleLegalMoves);
 
-// 5. AI takes its turn.
+// 5. AI takes its turn. Body: { sessionId, depth?: 1-3 }
+// depth is optional here — if the difficulty was already set at /new-game,
+// this endpoint reuses state.depth automatically. Passing depth again lets
+// difficulty be changed mid-game if you ever want that; otherwise omit it.
 app.post('/ai-move', (req, res) => {
-  const { sessionId } = req.body;
+  const { sessionId, depth } = req.body;
   const state = games.get(sessionId);
   if (!state) return res.status(404).json({ error: 'Game not found', received: sessionId || null });
   if (state.toMove !== state.aiColor) return res.status(400).json({ error: 'Not AI turn' });
 
-  const move = chooseAiMove(state.board, state.aiColor);
+  const effectiveDepth = depth !== undefined ? safeDepth(depth) : (state.depth || 2);
+  const move = chooseAiMove(state.board, state.aiColor, effectiveDepth);
   if (!move) {
     return res.json({ status: 'user_win', boardImageUrl: buildSnapshotUrl(state.board), aiMoveDescription: null });
   }
-  
-  const desc = describeMoveFriendly(move, state.aiColor); // FIX: Swapped to friendly translation
+
+  const desc = describeMoveFriendly(move, state.aiColor);
   state.board = applyMoveRaw(state.board, move.from, move.to);
   state.toMove = state.userColor;
 
   const status = gameStatus(state.board, state.toMove);
-  res.json({ status, boardImageUrl: buildSnapshotUrl(state.board), aiMoveDescription: desc }); // FIX: Swapped to snapshot URL
+  res.json({ status, boardImageUrl: buildSnapshotUrl(state.board), aiMoveDescription: desc });
 });
 
 const PORT = process.env.PORT || 3000;
