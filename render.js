@@ -1,6 +1,3 @@
-// render.js — renders the board as an SVG string. No native deps (no canvas/cairo),
-// so this deploys cleanly on Vercel/Render/Railway/anywhere.
-
 const CELL = 60;
 const MARGIN = 40;
 const W = MARGIN * 2 + CELL * 8;
@@ -14,20 +11,14 @@ const CHAR = {
 function px(col) { return MARGIN + col * CELL; }
 function py(row) { return MARGIN + row * CELL; }
 
-// Encode/decode a board into a compact 90-character string so a board
-// image URL can be fully self-contained (immutable snapshot) instead of
-// depending on live session lookup — see server.js for why this matters.
 function encodeBoardState(board) {
   let s = '';
-  for (let r = 0; r < 10; r++) {
-    for (let c = 0; c < 9; c++) {
-      s += board[r][c] || '.';
-    }
-  }
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) s += board[r][c] || '.';
   return s;
 }
 
 function decodeBoardState(str) {
+  if (!str || str.length !== 90) return null;
   const board = [];
   for (let r = 0; r < 10; r++) {
     const row = [];
@@ -41,52 +32,30 @@ function decodeBoardState(str) {
 }
 
 function renderBoardSVG(board, opts = {}) {
-  const { lastMove = null, highlightColor = '#ff5a3c' } = opts;
   let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="'PingFang SC','Microsoft YaHei',sans-serif">`;
   svg += `<rect width="${W}" height="${H}" fill="#f4d9a0"/>`;
-
-  // grid lines (horizontal)
-  for (let r = 0; r <= 9; r++) {
-    svg += `<line x1="${px(0)}" y1="${py(r)}" x2="${px(8)}" y2="${py(r)}" stroke="#5a3d1f" stroke-width="2"/>`;
-  }
-  // grid lines (vertical) — broken across the river except the two edge columns
+  for (let r = 0; r <= 9; r++) svg += `<line x1="${px(0)}" y1="${py(r)}" x2="${px(8)}" y2="${py(r)}" stroke="#5a3d1f" stroke-width="2"/>`;
   for (let c = 0; c <= 8; c++) {
-    if (c === 0 || c === 8) {
-      svg += `<line x1="${px(c)}" y1="${py(0)}" x2="${px(c)}" y2="${py(9)}" stroke="#5a3d1f" stroke-width="2"/>`;
-    } else {
+    if (c === 0 || c === 8) svg += `<line x1="${px(c)}" y1="${py(0)}" x2="${px(c)}" y2="${py(9)}" stroke="#5a3d1f" stroke-width="2"/>`;
+    else {
       svg += `<line x1="${px(c)}" y1="${py(0)}" x2="${px(c)}" y2="${py(4)}" stroke="#5a3d1f" stroke-width="2"/>`;
       svg += `<line x1="${px(c)}" y1="${py(5)}" x2="${px(c)}" y2="${py(9)}" stroke="#5a3d1f" stroke-width="2"/>`;
     }
   }
-  // palace diagonals
   svg += `<line x1="${px(3)}" y1="${py(0)}" x2="${px(5)}" y2="${py(2)}" stroke="#5a3d1f" stroke-width="2"/>`;
   svg += `<line x1="${px(5)}" y1="${py(0)}" x2="${px(3)}" y2="${py(2)}" stroke="#5a3d1f" stroke-width="2"/>`;
   svg += `<line x1="${px(3)}" y1="${py(7)}" x2="${px(5)}" y2="${py(9)}" stroke="#5a3d1f" stroke-width="2"/>`;
   svg += `<line x1="${px(5)}" y1="${py(7)}" x2="${px(3)}" y2="${py(9)}" stroke="#5a3d1f" stroke-width="2"/>`;
-
-  // river text
   svg += `<text x="${W/2 - 90}" y="${(py(4)+py(5))/2 + 8}" font-size="22" fill="#5a3d1f">楚 河</text>`;
   svg += `<text x="${W/2 + 20}" y="${(py(4)+py(5))/2 + 8}" font-size="22" fill="#5a3d1f">漢 界</text>`;
-
-  // last-move highlight
-  if (lastMove) {
-    for (const [r, c] of [lastMove.from, lastMove.to]) {
-      svg += `<circle cx="${px(c)}" cy="${py(r)}" r="${CELL/2 - 4}" fill="none" stroke="${highlightColor}" stroke-width="3"/>`;
-    }
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+    const p = board[r][c];
+    if (!p) continue;
+    const isRedPiece = p === p.toUpperCase();
+    const cx = px(c), cy = py(r);
+    svg += `<circle cx="${cx}" cy="${cy}" r="${CELL/2 - 5}" fill="#fdf1d8" stroke="${isRedPiece ? '#c0392b' : '#2c2c2c'}" stroke-width="2.5"/>`;
+    svg += `<text x="${cx}" y="${cy + 9}" font-size="26" text-anchor="middle" fill="${isRedPiece ? '#c0392b' : '#2c2c2c'}" font-weight="bold">${CHAR[p]}</text>`;
   }
-
-  // pieces
-  for (let r = 0; r < 10; r++) {
-    for (let c = 0; c < 9; c++) {
-      const p = board[r][c];
-      if (!p) continue;
-      const isRedPiece = p === p.toUpperCase();
-      const cx = px(c), cy = py(r);
-      svg += `<circle cx="${cx}" cy="${cy}" r="${CELL/2 - 5}" fill="#fdf1d8" stroke="${isRedPiece ? '#c0392b' : '#2c2c2c'}" stroke-width="2.5"/>`;
-      svg += `<text x="${cx}" y="${cy + 9}" font-size="26" text-anchor="middle" fill="${isRedPiece ? '#c0392b' : '#2c2c2c'}" font-weight="bold">${CHAR[p]}</text>`;
-    }
-  }
-
   svg += `</svg>`;
   return svg;
 }
